@@ -136,9 +136,9 @@ jobs:
 
       - name: Zip core by `tar`
         run: |
-          archs=(amd64 amd64-v3 armv5 armv6 armv7 arm64 mips-softfloat mipsle-hardfloat mipsle-softfloat)
-          new_name=(amd64 amd64v3 armv5 armv6 armv7 armv8 mips-softfloat mipsle-hardfloat mipsle-softfloat)
-          for((i=0;i<9;i++));do
+          archs=(amd64 arm64)
+          new_name=(amd64 armv8)
+          for((i=0;i<2;i++));do
             mv -f ./tmp/linux-${archs[i]}/sing-box ./tmp/CrashCore
             chmod +x ./tmp/CrashCore
             tar --no-same-owner -czf ./tmp/sing-box-linux-${new_name[i]}.tar.gz -C ./tmp/ ./CrashCore
@@ -149,8 +149,6 @@ jobs:
           mkdir -p ./sing-box-puernya/
           rm -rf ./sing-box-puernya/*
           mv -f ./tmp/sing-box-linux* ./sing-box-puernya/
-          mv -f ./tmp/windows-amd64/sing-box.exe ./sing-box-puernya/sing-box-windows-amd64.exe
-          mv -f ./tmp/windows-amd64-v3/sing-box.exe ./sing-box-puernya/sing-box-windows-amd64v3.exe
           rm -rf ./tmp* 
 
       - name: Commit and push `sing-box`
