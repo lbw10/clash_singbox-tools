@@ -151,15 +151,37 @@ jobs:
           mv -f ./tmp/sing-box-linux* ./sing-box-puernya/
           rm -rf ./tmp* 
 
+      - name: Create version text file
+        run: echo "The version is ${{ needs.sing-box.outputs.version }}" > version.txt
+      
+      - name: Compare versions
+        id: compare-versions
+        run: |
+          current_version=$(cat version.txt)
+          if [ "${{ needs.sing-box.outputs.version }}" != "$current_version" ]; then
+            echo "::set-output name=versions_match::false"
+          else
+            echo "::set-output name=versions_match::true"
+          fi
+
+      - name: Upload version.txt
+        if: steps.compare-versions.outputs.versions_match == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-info
+          path: version.txt
+
       - name: Commit and push `sing-box`
+        if: steps.compare-versions.outputs.versions_match == 'false'
         run: |
           cd ./sing-box-puernya/ || exit 1
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
-          git add . && git commit -m "更新 sing-box 内核 PuerNya 版至 v${VERSION}" || exit 0
+          git add . && git commit -m "更新 sing-box 内核 PuerNya 版至 v${{ needs.sing-box.outputs.version }}" || exit 0
           git push -f
 
       - name: Purge jsDelivr CDN
+        if: steps.compare-versions.outputs.versions_match == 'false'
         run: |
           cd ./sing-box-puernya/ || exit 1
           for file in $(ls); do
