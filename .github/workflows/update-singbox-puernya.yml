@@ -144,40 +144,39 @@ jobs:
             tar --no-same-owner -czf ./tmp/sing-box-linux-${new_name[i]}.tar.gz -C ./tmp/ ./CrashCore
           done
 
-      - name: Move files
-        run: |
-          mkdir -p ./sing-box-puernya/
-          rm -rf ./sing-box-puernya/*
-          mv -f ./tmp/sing-box-linux* ./sing-box-puernya/
-          rm -rf ./tmp* 
-
       - name: Create version text file
         run: echo "The version is ${{ needs.sing-box.outputs.version }}" > version.txt
       
       - name: Check if version.txt exists
         run: |
-          if [ -f "./sing-box-puernya/version.txt" ]; then
+          if [ -f "./sing-box-release/version.txt" ]; then
             echo "version.txt exists"
           else
             echo "version.txt does not exist, creating..."
-            echo "The version is ${{ needs.sing-box.outputs.version }}" > ./sing-box-puernya/version.txt
+            echo "The version is ${{ needs.sing-box.outputs.version }}" > ./sing-box-release/version.txt
           fi
       - name: Compare versions
         id: compare-versions
         run: |
-          current_version=$(cat ./sing-box-puernya/version.txt)
+          current_version=$(cat ./sing-box-release/version.txt)
           if [ "${{ needs.sing-box.outputs.version }}" != "$current_version" ]; then
             echo "::set-output name=versions_match::false"
           else
             echo "::set-output name=versions_match::true"
           fi
-
+      - name: Move files
+        if: steps.compare-versions.outputs.versions_match == 'false'
+        run: |
+          mkdir -p ./sing-box-puernya/
+          rm -rf ./sing-box-puernya/*
+          mv -f ./tmp/sing-box-linux* ./sing-box-puernya/
+          rm -rf ./tmp* 
       - name: Upload version.txt
         if: steps.compare-versions.outputs.versions_match == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: version-info
-          path: ./sing-box-puernya/version.txt
+          path: ./sing-box-release/version.txt
 
       - name: Commit and push `sing-box`
         if: steps.compare-versions.outputs.versions_match == 'false'
