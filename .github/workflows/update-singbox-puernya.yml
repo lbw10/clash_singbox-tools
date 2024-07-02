@@ -54,6 +54,32 @@ jobs:
           version=$(CGO_ENABLED=0 go run ./cmd/internal/read_tag)
           echo version=$version >> $GITHUB_OUTPUT
           echo tags=with_quic,with_dhcp,with_wireguard,with_shadowsocksr,with_ech,with_utls,with_reality_server,with_clash_api,with_gvisor >> $GITHUB_OUTPUT
+      
+      - name: Create version text file
+        run: echo "$version" > version.txt
+      
+      - name: Check if version.txt exists
+        run: |
+          if [ -f "./sing-box-puernya/version.txt" ]; then
+            echo "version.txt exists"
+          else
+            echo "version.txt does not exist, creating..."
+            echo "$version" > ./sing-box-puernya/version.txt
+          fi
+
+      - name: Compare versions
+        id: compare-versions
+        run: |
+          current_version=$(cat ./sing-box-puernya/version.txt)
+          if [ "$version" != "$current_version" ]; then
+            echo "::set-output name=versions_match::false"
+          else
+            echo "::set-output name=versions_match::true"
+          fi
+
+      - name: Stop further actions if versions match
+        if: steps.compare-versions.outputs.versions_match == 'true'
+        run: exit 0
 
   cross:
     strategy:
@@ -144,42 +170,23 @@ jobs:
             tar --no-same-owner -czf ./tmp/sing-box-linux-${new_name[i]}.tar.gz -C ./tmp/ ./CrashCore
           done
 
-      - name: Create version text file
-        run: echo "The version is ${{ needs.sing-box.outputs.version }}" > version.txt
       
-      - name: Check if version.txt exists
-        run: |
-          if [ -f "./sing-box-release/version.txt" ]; then
-            echo "version.txt exists"
-          else
-            echo "version.txt does not exist, creating..."
-            echo "The version is ${{ needs.sing-box.outputs.version }}" > ./sing-box-release/version.txt
-          fi
-      - name: Compare versions
-        id: compare-versions
-        run: |
-          current_version=$(cat ./sing-box-release/version.txt)
-          if [ "${{ needs.sing-box.outputs.version }}" != "$current_version" ]; then
-            echo "::set-output name=versions_match::false"
-          else
-            echo "::set-output name=versions_match::true"
-          fi
       - name: Move files
-        if: steps.compare-versions.outputs.versions_match == 'false'
         run: |
           mkdir -p ./sing-box-puernya/
           rm -rf ./sing-box-puernya/*
           mv -f ./tmp/sing-box-linux* ./sing-box-puernya/
           rm -rf ./tmp* 
+      - name: Create version text file
+        run: echo "${{ needs.sing-box.outputs.version }}" > version.txt
+
       - name: Upload version.txt
-        if: steps.compare-versions.outputs.versions_match == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: version-info
-          path: ./sing-box-release/version.txt
+          path: ./sing-box-puernya/version.txt
 
       - name: Commit and push `sing-box`
-        if: steps.compare-versions.outputs.versions_match == 'false'
         run: |
           cd ./sing-box-puernya/ || exit 1
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -188,7 +195,6 @@ jobs:
           git push -f
 
       - name: Purge jsDelivr CDN
-        if: steps.compare-versions.outputs.versions_match == 'false'
         run: |
           cd ./sing-box-puernya/ || exit 1
           for file in $(ls); do
